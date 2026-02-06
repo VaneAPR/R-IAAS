@@ -1,0 +1,116 @@
+---
+title: ""
+author: ""
+format:
+  html:
+    toc: true
+    toc-expand: true
+    toc-depth: 4
+    toc-location: left
+    number-sections: true
+    self-contained: true
+    code-fold: true
+    output-file: "ESM"
+editor_options: 
+  chunk_output_type: console
+execute: 
+  warning: false
+  message: false
+  echo: true
+---
+
+# Project Setup
+
+```{r}
+#| label:  setup
+
+source('https://inkaverse.com/setup.r')
+```
+
+# Data import
+
+```{r}
+gs <- "https://docs.google.com/spreadsheets/d/15r7ZwcZZHbEgltlF6gSFvCTFA-CFzVBWwg3mFlRyKPs/edit?gid=1263018298#gid=1263018298" %>% 
+  as_sheets_id()
+
+fb <- gs %>% 
+  range_read(ss = .,sheet = "fb")
+```
+
+# Area foliar
+
+$$y = \mu Tratamientos + e$$
+
+$$y = \mu Tratamientos + bloque + e$$
+
+$$lfa = \mu + riego + geno + riego*geno + bloque + e$$
+
+## anova
+
+```{r}
+str(fb)
+
+md <- aov(formula = lfa ~ bloque + riego + geno + riego*geno, data = fb)
+
+anova(md)
+```
+
+utilizando el objeto md hacer la comparación de medias de riego por genotipo usando el paquete emmeans y incluir la letras de significancia
+
+```{r}
+md <- aov(lfa ~ bloque + riego*geno, fb)
+
+anova
+
+
+library(emmeans)
+library(ggplot2)
+library(dplyr)
+
+mc_summary <- mc %>%
+  group_by(riego, geno) %>%
+  summarize(mean = mean(emmean),
+            se = mean(SE),
+            .groups = "drop")
+
+ggplot(mc_summary, aes(x = geno, y = mean, fill = riego)) +
+  geom_col(position = "dodge") +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), 
+                position = position_dodge(width = 0.9), 
+                width = 0.2) +
+  scale_fill_manual(values = c("irrigado" = "blue", "sequia" = "red")) +
+  labs(y = "Área foliar (cm²)", x = "Genotipo") +
+  theme_minimal()
+```
+
+
+Usando el objeto mc, hacer un grafico de barras usando ggplot2 donde en el eje x esten los geno agrupados por riego e incluir la significancia con su error estandar. Para el nivel de riego, irrigado ponerlo azul y sequia en rojo. Y en el eje y, poner el título: Área foliar (cm2)
+
+# Analisis multivariado
+
+Realizar un pca usando el paqueto FactoMineR de la base de datos fb. Excluir las variables block y bloque. Riego y Genotipo son variables suplementarias
+
+```{r}
+
+library(FactoMineR)
+library(factoextra)
+
+pca_data <- fb[, !names(fb) %in% c("block", "bloque")]
+supp_vars <- pca_data[, c("riego", "geno")]
+num_data <- pca_data[, !names(pca_data) %in% c("riego", "geno")]
+
+pca_res <- PCA(num_data, quali.sup = which(names(pca_data) %in% c("riego", "geno")), graph = FALSE)
+
+fviz_pca_ind(pca_res, habillage = supp_vars$riego, addEllipses = TRUE)
+fviz_pca_var(pca_res)
+
+
+
+```
+
+
+
+```
+
+
+
